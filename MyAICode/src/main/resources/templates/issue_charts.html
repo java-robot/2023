@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="renderer" content="webkit">
+
+    <title>源代码误报智能分析</title>
+
+    <link href="/css/bootstrap.min.css?v=3.4.0" rel="stylesheet" />
+    <link href="/font-awesome/css/font-awesome.css?v=4.3.0" rel="stylesheet" />
+    <link href="/css/plugins/iCheck/custom.css" rel="stylesheet" />
+    <link href="/css/animate.css" rel="stylesheet" />
+    <link href="/css/style.css?v=2.2.0" rel="stylesheet" />
+
+    <!-- Mainly scripts -->
+    <script src="/js/jquery.js"></script>
+    <script src="/js/bootstrap.min.js?v=3.4.0"></script>
+    <script src="/js/plugins/bootstrap-table/bootstrap-table.min.js"></script>
+    <script src="/js/plugins/bootstrap-table/locale/bootstrap-table-zh-CN.min.js"></script>
+    <script src="/js/layer/layer.js"></script>
+
+    <script src="/js/plugins/echarts/echarts-all.js"></script>
+    <script src="/js/visualization.js"></script>
+
+</head>
+
+<body class="gray-bg top-navigation">
+
+    <div id="wrapper">
+        <div id="page-wrapper" class="gray-bg">
+            <div class="row border-bottom white-bg">
+                <nav class="navbar navbar-static-top" role="navigation">
+                    <div class="navbar-header">
+                        <button aria-controls="navbar" aria-expanded="false" data-target="#navbar" data-toggle="collapse" class="navbar-toggle collapsed" type="button">
+                            <i class="fa fa-reorder"></i>
+                        </button>
+                        <a href="#" class="navbar-brand">CodeAnalysis</a>
+                    </div>
+                    <div class="navbar-collapse collapse" id="navbar">
+                        <ul class="nav navbar-nav">
+                            <li>
+                                <a href="#"><i class="fa fa-home"></i> <span class="nav-label">首页</span></a>
+                            </li>
+                            <li class="active">
+                                <a href="/view/projects"><i class="fa fa-tasks"></i> <span class="nav-label">我的任务</span></a>
+                            </li>
+                            <li>
+                                <a href="/view/templates"><i class="fa fa-file-text"></i> <span class="nav-label">模版管理</span></a>
+                            </li>
+                            <li class="dropdown">
+                                <a aria-expanded="false" role="button" href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i>个人中心 <span class="caret"></span></a>
+                                <ul role="menu" class="dropdown-menu">
+                                    <li><a href="/view/info"><span class="nav-label">个人资料</span></a>
+                                    </li>
+                                    <li><a href="/view/password"><span class="nav-label">修改密码</span></a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <ul class="nav navbar-top-links navbar-right">
+                            <li>
+                                <a href="/view/issues/list">
+                                    <i class="fa fa-sign-out"></i> 返回
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+            <div class="wrapper wrapper-content">
+                <div class="row">
+                    <div class="col-lg-10">
+                        <h2>
+                            <span th:text="${session.project.projectName}"></span>:
+                            <span th:text="${session.version.versionName}"></span>
+                        </h2>
+                    </div>
+                    <!-- <div class="col-lg-2">
+                        <h2 style="text-align: right;">
+                            <a class="btn btn-primary" href="/view/issues/list" role="button">列表</a>
+                        </h2>
+                    </div> -->
+                </div>
+                <div class="wrapper wrapper-content animated fadeInRight">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="ibox float-e-margins">
+                                <div class="ibox-title">
+                                    <h5>威胁等级</h5>
+                                    <div class="ibox-tools">
+                                        <a class="collapse-link">
+                                            <i class="fa fa-chevron-up"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="ibox-content">
+                                    <div class="echarts" id="issue_priority"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="ibox float-e-margins">
+                                <div class="ibox-title">
+                                    <h5>漏洞领域</h5>
+                                    <div class="ibox-tools">
+                                        <a class="collapse-link">
+                                            <i class="fa fa-chevron-up"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="ibox-content">
+                                    <div class="echarts" id="issue_category"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+<!--                    <div class="row">-->
+<!--                        <div class="col-lg-12">-->
+<!--                            -->
+<!--                        </div>-->
+<!--                    </div>-->
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="ibox float-e-margins">
+                                <div class="ibox-title">
+                                    <div class="ibox-tools">
+                                        <a class="collapse-link">
+                                            <i class="fa fa-chevron-up"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="ibox-content">
+                                    <table class="table table-hover" id="statisticsTable"></table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="pull-right">
+                </div>
+                <div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+<script>
+    $(document).ready(function() {
+        $("#statisticsTable").bootstrapTable({
+            url: "/issues/pattern", //请求地址
+            striped: true, //是否显示行间隔色
+            pageNumber: 1, //初始化加载第一页
+            pagination: true, //是否分页
+            sidePagination: 'client', //server:服务器端分页|client：前端分页
+            pageSize: 10, //单页记录数
+            pageList: [5, 10, 20], //可选择单页记录数
+            showRefresh: true, //刷新按钮
+            columns: [{
+                title: '#',
+                field: 'id',
+                sortable: true,
+                formatter: function(value, row, index) {
+                    return index + 1;
+                }
+            }, {
+                title: '漏洞模式',
+                field: 'patternName',
+                sortable: true,
+            }, {
+                title: '修正前数量',
+                field: 'preIssueNum',
+                sortable: true,
+            }, {
+                title: '修正后数量',
+                field: 'nowIssueNum',
+                sortable: true,
+            }]
+        })
+    });
+</script>
+</html>

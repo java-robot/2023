@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:v-bind="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="renderer" content="webkit">
+
+    <title>源代码误报智能分析</title>
+
+    <link href="/css/bootstrap.min.css?v=3.4.0" rel="stylesheet" />
+    <link href="/font-awesome/css/font-awesome.css?v=4.3.0" rel="stylesheet" />
+    <link href="/css/plugins/iCheck/custom.css" rel="stylesheet" />
+    <link href="/css/animate.css" rel="stylesheet" />
+    <link href="/css/style.css?v=2.2.0" rel="stylesheet" />
+    <link href="/css/plugins/treeview/bootstrap-treeview.css" rel="stylesheet">
+
+    <!-- Mainly scripts -->
+    <script src="/js/jquery.js"></script>
+    <script src="/js/bootstrap.min.js?v=3.4.0"></script>
+    <script src="/js/plugins/bootstrap-table/bootstrap-table.min.js"></script>
+    <script src="/js/plugins/bootstrap-table/locale/bootstrap-table-zh-CN.min.js"></script>
+    <script src="/js/layer/layer.js"></script>
+
+    <!-- Bootstrap-Treeview plugin javascript -->
+    <script src="/js/plugins/treeview/bootstrap-treeview.js"></script>
+    <script src="/js/issueinfo.js"></script>
+    <script src="/js/rule.js"></script>
+    <script src="/js/predict.js"></script>
+
+</head>
+
+<body class="gray-bg top-navigation">
+    <div id="wrapper">
+        <div id="page-wrapper" class="gray-bg">
+            <div class="row border-bottom white-bg">
+                <nav class="navbar navbar-static-top" role="navigation">
+                    <div class="navbar-header">
+                        <button aria-controls="navbar" aria-expanded="false" data-target="#navbar" data-toggle="collapse" class="navbar-toggle collapsed" type="button">
+                            <i class="fa fa-reorder"></i>
+                        </button>
+                        <a href="#" class="navbar-brand">CodeAnalysis</a>
+                    </div>
+                    <div class="navbar-collapse collapse" id="navbar">
+                        <ul class="nav navbar-nav">
+                            <li>
+                                <a href="#"><i class="fa fa-home"></i> <span class="nav-label">首页</span></a>
+                            </li>
+                            <li class="active">
+                                <a href="/view/projects"><i class="fa fa-tasks"></i> <span class="nav-label">我的任务</span></a>
+                            </li>
+                            <li>
+                                <a href="/view/templates"><i class="fa fa-file-text"></i> <span class="nav-label">模版管理</span></a>
+                            </li>
+                            <li class="dropdown">
+                                <a aria-expanded="false" role="button" href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i>个人中心 <span class="caret"></span></a>
+                                <ul role="menu" class="dropdown-menu">
+                                    <li><a href="/view/info"><span class="nav-label">个人资料</span></a>
+                                    </li>
+                                    <li><a href="/view/password"><span class="nav-label">修改密码</span></a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <ul class="nav navbar-top-links navbar-right">
+                            <li>
+                                <a th:href="@{'/view/versions/'+${session.project.projectId}}">
+                                    <i class="fa fa-sign-out"></i> 返回
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+            <div class="wrapper wrapper-content">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <h2>
+                            <span th:text="${session.project.projectName}"></span>:
+                            <span th:text="${session.version.versionName}"></span>
+                            <span><a class="btn btn-primary" href="#" role="button" data-toggle="modal" data-target="#resultModal" onclick="predict()">预测</a></span>
+                        </h2>
+                    </div>
+                    <div class="col-lg-4">
+                        <h2 style="text-align: right">
+                            <span><a class="btn btn-primary" href="#" role="button" onclick="generate()">导出</a></span>
+<!--                            <span><a class="btn btn-warning" href="/view/issues/charts" role="button">统计</a></span>-->
+                        </h2>
+                    </div>
+                    <div class="modal fade" tabindex="-1" role="dialog" id="resultModal">
+                        <div class="modal-dialog" role="document" style="margin-left: 100px">
+                            <div class="modal-content" style="width: 1250px;">
+                                <div class="modal-header">
+                                    <h3 class="modal-title">预测结果</h3>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="container">
+                                        <table class="table table-hover" id="resultTable"></table>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-default" data-dismiss="modal" onclick="refresh()">确认</button>
+                                </div>
+                            </div>
+                            <!-- /.modal-content -->
+                        </div>
+                        <!-- /.modal-dialog -->
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="ibox float-e-margins">
+                            <div class="ibox-title">
+                                <h5>问题列表</h5>
+                                <div class="ibox-tools">
+                                    <a class="collapse-link">
+                                        <i class="fa fa-chevron-up"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="ibox-content">
+                                <div class="row">
+                                    <table id="condition">
+                                        <tr>
+                                            <td style="padding-left: 20px;width:80px">
+                                                <label>优先级：</label>
+                                            </td>
+                                            <td style="width: 100px">
+                                                <select id="prioritySelect" class="input-sm form-control input-s-sm inline" onchange="refresh()">
+                                                    <option value="">请选择</option>
+                                                    <option value="低">低</option>
+<!--                                                    <option value="中等">中等</option>-->
+                                                    <option value="高">高</option>
+                                                    <option value="严重">严重</option>
+                                                </select>
+                                            </td>
+                                            <td style="padding-left: 20px;width: 100px">
+                                                <label>漏洞类型：</label>
+                                            </td>
+                                            <td>
+                                                <select id="patternSelect" class="input-sm form-control input-s-sm inline" onchange="refresh()">
+                                                    <option value="" selected>请选择</option>
+                                                    <option th:each="patternItem:${patternItemList}" th:value="${patternItem.patternId}" th:text="${patternItem.patternName}+'('+${patternItem.issueNum}+')'"></option>
+                                                </select>
+                                            </td>
+                                            <td style="padding-left: 20px;width: 60px">
+                                                <label>状态：</label>
+                                            </td>
+                                            <td style="width: 100px">
+                                                <select id="stateSelect" class="input-sm form-control input-s-sm inline" onchange="refresh()">
+                                                    <option value="">请选择</option>
+                                                    <option value="False">误报</option>
+                                                    <option value="True">正报</option>
+                                                    <option value="Unknown">未知</option>
+                                                    <option value="Unclassified">未分类</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <table class="table table-hover" id="issueTable"></table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="panel blank-panel">
+                            <div class="panel-heading">
+                                <div class="panel-title m-b-md">
+                                    <h4>信息</h4>
+                                    <strong id = "filePathArea"></strong>
+                                    <br>
+                                    <strong id = "functionArea"></strong>
+                                </div>
+                                <div class="panel-options">
+                                    <ul class="nav nav-tabs">
+                                        <li>
+                                            <a data-toggle="tab" href="issue_list.html#tab-1">基本信息</a>
+                                        </li>
+                                        <li>
+                                            <a data-toggle="tab" href="issue_list.html#tab-2">模式详情</a>
+                                        </li>
+                                        <li>
+                                            <a data-toggle="tab" href="issue_list.html#tab-3">代码详情</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <div class="tab-content">
+                                    <div id="tab-1" class="tab-pane active">
+                                        <p>漏洞领域</p>
+                                        <pre id="kingdomArea"></pre>
+<!--                                        <p>问题描述</p>-->
+<!--                                        <pre id="descriptionArea"></pre>-->
+                                        <p>漏洞模式</p>
+                                        <pre id="patternNameLabel"></pre>
+                                    </div>
+                                    <div id="tab-2" class="tab-pane">
+                                        <p>说明：</p>
+                                        <pre id="explanationArea"></pre>
+                                        <p>修复建议：</p>
+                                        <pre id="recommendationArea"></pre>
+<!--                                        <p>小提示：</p>-->
+<!--                                        <pre id="tipArea"></pre>-->
+                                    </div>
+                                    <div id="tab-3" class="tab-pane">
+                                        <p>代码内容</p>
+                                        <pre id="newCodeArea"></pre>
+                                        <p>方法代码</p>
+                                        <pre id="FuncCodeArea"></pre>
+                                        <hr>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <div class="footer">
+                <div class="pull-right">
+                </div>
+                <div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+<script th:inline="javascript">
+    $(document).ready(function() {
+        $("#issueTable").bootstrapTable({
+            url: "/issues", //请求地址
+            queryParams:function(params){
+                let data = {
+                    priority:$('#prioritySelect').val(),
+                    patternId:$('#patternSelect').val(),
+                    state:$('#stateSelect').val(),
+                    type:$('#typeSelect').val()
+                };
+                return data;
+            },
+            striped: true, //是否显示行间隔色
+            pageNumber: 1, //初始化加载第一页
+            pagination: true, //是否分页
+            sidePagination: 'client', //server:服务器端分页|client：前端分页
+            pageSize: 5, //单页记录数
+            pageList: [ 5, 10], //可选择单页记录数
+            showRefresh: true, //刷新按钮
+            // sortName: 'likelihood',
+            // sortOrder: 'desc',
+            rowStyle: style,
+            columns: [{
+                title: '#',
+                field: 'id',
+                sortable: true,
+                formatter: function(value, row, index) {
+                    return index + 1;
+                }
+            }, {
+                title: '漏洞模式',
+                field: 'patternName',
+                sortable: true
+            },  {
+                title: '漏洞类别',
+                field: 'type',
+                sortable: true
+            },{
+                title: '优先级',
+                field: 'priority',
+                sortable: true
+            }, {
+                title: '文件名称',
+                field: 'fileName',
+                sortable: true
+            }, {
+                title: '置信值',
+                field: 'likelihood',
+                sortable: true,
+                formatter: toFixed
+            }, {
+                field: 'operate',
+                title: '操作',
+                formatter: IssueOperateFormatter //自定义方法，添加操作按钮
+            }],
+            onClickRow:function (row, $element) {
+                watchIssue(row.issueId);
+                $('.info').removeClass('info');//移除class
+                $($element).addClass('info');//添加class
+            }
+        })
+    });
+
+    function refresh() {
+        $("#issueTable").bootstrapTable('refresh')
+    }
+
+    function toFixed(value, row, index) {
+        let num = row.likelihood;
+        return num.toFixed(2);
+    }
+
+    /**
+     * @return {string}
+     */
+    // function IssueOperateFormatter(value, row, index) {
+    //     if (row.state === "False") return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为正报' onclick='start(\"" + row.issueId + "\")'><i class='fa fa-check'></i></a>";
+    //     else if (row.state === "True") return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为误报' onclick='end(\"" + row.issueId + "\")'><i class='fa fa-times'></i></a>";
+    //     else return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为正报' onclick='start(\"" + row.issueId + "\")'><i class='fa fa-check'></i></a>" + "  " + "<a href='#' title='标记为误报' onclick='end(\"" + row.issueId + "\")'><i class='fa fa-times'></i></a>";
+    // }
+
+    function IssueOperateFormatter(value, row, index) {
+        if (row.state === "False") {
+            return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为正报' onclick='start(\"" + row.issueId + "\")'><i class='fa fa-check'></i></a>" + "  " + "<a href='#' title='预测' onclick='predict(\"" + row.issueId + "\")'><i class='fa fa-question'></i></a>";
+        } else if (row.state === "True") {
+            return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为误报' onclick='end(\"" + row.issueId + "\")'><i class='fa fa-times'></i></a>" + "  " + "<a href='#' title='预测' onclick='predict(\"" + row.issueId + "\")'><i class='fa fa-question'></i></a>";
+        } else {
+            return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为正报' onclick='start(\"" + row.issueId + "\")'><i class='fa fa-check'></i></a>" + "  " + "<a href='#' title='标记为误报' onclick='end(\"" + row.issueId + "\")'><i class='fa fa-times'></i></a>" + "  " + "<a href='#' title='预测' onclick='predict(\"" + row.issueId + "\")'><i class='fa fa-question'></i></a>";
+        }
+    }
+
+    function style(row, index) {
+        let style = "";
+        if (row.state === 'True') {
+            style = "danger";
+        }
+        return {
+            classes: style
+        };
+    }
+
+    function generate() {
+        $.ajax({
+            url: '/generateReport',
+            responseType: 'blob',
+            method: 'get',
+            success: function(msg) {
+                if (msg === 'null') layer.msg("请设置报告模版");
+                else {
+                    const blob = new Blob([msg], {
+                        type: 'application/vnd.ms-excel;charset=utf-8'
+                    });
+                    const link = document.createElement('a'); // 创建a链接，用于下载文件
+                    link.download = [[${session.project.projectName}]]+'-'+[[${session.version.versionName}]]+'.doc';
+                    link.style.display = 'none';
+                    link.href = URL.createObjectURL(blob);
+                    document.body.appendChild(link);
+                    link.click(); // 触发事件，下载文件
+                    URL.revokeObjectURL(link.href); // 释放掉blob对象
+                    document.body.removeChild(link) // 下载完成移除元素
+                }
+            }
+        })
+    }
+
+    function start(id) {
+        layer.open({
+            title: false,
+            shade: 0.4,
+            content: '确定将此警报标记为正报？',
+            btn: ['确定', '取消'],
+            yes: function(index, layero) {
+                $.ajax({
+                    url: '/start/issue/' + id,
+                    success: function(msg) {
+                        if (msg === 1) $("#issueTable").bootstrapTable('refresh');
+                    }
+                });
+                layer.close(index);
+            },
+            btn2: function(index, layero) {
+                layer.close(index);
+            }
+        });
+    }
+    function end(id) {
+        layer.open({
+            title: false,
+            shade: 0.4,
+            content: '确定将此警报标记为误报？',
+            btn: ['确定', '取消'],
+            yes: function(index, layero) {
+                $.ajax({
+                    url: '/end/issue/' + id,
+                    success: function(msg) {
+                        if (msg === 1) $("#issueTable").bootstrapTable('refresh');
+                    }
+                });
+                layer.close(index);
+            },
+            btn2: function(index, layero) {
+                layer.close(index);
+            }
+        });
+    }
+
+    function predict(id) {
+        layer.open({
+            title: false,
+            shade: 0.4,
+            content: '确定要进行预测吗？',
+            btn: ['确定', '取消'],
+            yes: function(index, layero) {
+                $.ajax({
+                    url: '/predict/issue/' + id,
+                    success: function(msg) {
+                        if (msg === 1) $("#issueTable").bootstrapTable('refresh');
+                    }
+                });
+                layer.close(index);
+            },
+            btn2: function(index, layero) {
+                // 点击取消按钮时执行的操作，这里只是关闭弹出层
+                layer.close(index);
+            }
+        });
+    }
+    function toViewKnowledge(){
+        let patternId = $("#patternIdDiv").text();
+        if(patternId !== '') window.location.href = '/view/knowledge/'+patternId;
+    }
+</script>
+
+</html>

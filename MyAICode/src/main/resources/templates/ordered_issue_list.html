@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:v-bind="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="renderer" content="webkit">
+
+  <title>源代码误报智能分析</title>
+
+  <link href="/css/bootstrap.min.css?v=3.4.0" rel="stylesheet" />
+  <link href="/font-awesome/css/font-awesome.css?v=4.3.0" rel="stylesheet" />
+  <link href="/css/plugins/iCheck/custom.css" rel="stylesheet" />
+  <link href="/css/animate.css" rel="stylesheet" />
+  <link href="/css/style.css?v=2.2.0" rel="stylesheet" />
+  <link href="/css/plugins/treeview/bootstrap-treeview.css" rel="stylesheet">
+
+  <!-- Mainly scripts -->
+  <script src="/js/jquery.js"></script>
+  <script src="/js/bootstrap.min.js?v=3.4.0"></script>
+  <script src="/js/plugins/bootstrap-table/bootstrap-table.min.js"></script>
+  <script src="/js/plugins/bootstrap-table/locale/bootstrap-table-zh-CN.min.js"></script>
+  <script src="/js/layer/layer.js"></script>
+
+  <!-- Bootstrap-Treeview plugin javascript -->
+  <script src="/js/plugins/treeview/bootstrap-treeview.js"></script>
+  <script src="/js/issueinfo.js"></script>
+  <script src="/js/rule.js"></script>
+  <script src="/js/predict.js"></script>
+
+</head>
+
+<body class="gray-bg top-navigation">
+<div id="wrapper">
+  <div id="page-wrapper" class="gray-bg">
+    <div class="row border-bottom white-bg">
+      <nav class="navbar navbar-static-top" role="navigation">
+        <div class="navbar-header">
+          <button aria-controls="navbar" aria-expanded="false" data-target="#navbar" data-toggle="collapse" class="navbar-toggle collapsed" type="button">
+            <i class="fa fa-reorder"></i>
+          </button>
+          <a href="#" class="navbar-brand">CodeAnalysis</a>
+        </div>
+        <div class="navbar-collapse collapse" id="navbar">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="#"><i class="fa fa-home"></i> <span class="nav-label">首页</span></a>
+            </li>
+            <li class="active">
+              <a href="/view/projects"><i class="fa fa-tasks"></i> <span class="nav-label">我的任务</span></a>
+            </li>
+            <li>
+              <a href="/view/templates"><i class="fa fa-file-text"></i> <span class="nav-label">模版管理</span></a>
+            </li>
+            <li>
+              <a href="/view/codes"><i class="fa fa-code"></i> <span class="nav-label">源码管理</span></a>
+            </li>
+            <li class="dropdown">
+              <a aria-expanded="false" role="button" href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i>个人中心 <span class="caret"></span></a>
+              <ul role="menu" class="dropdown-menu">
+                <li><a href="/view/info"><span class="nav-label">个人资料</span></a>
+                </li>
+                <li><a href="/view/password"><span class="nav-label">修改密码</span></a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <ul class="nav navbar-top-links navbar-right">
+            <li>
+              <a th:href="@{'/view/versions/'+${session.project.projectId}}">
+                <i class="fa fa-sign-out"></i> 返回
+              </a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+    <div class="wrapper wrapper-content">
+      <div class="row">
+        <div class="col-lg-12">
+          <h2>
+            <span th:text="${session.project.projectName}"></span>:
+            <span th:text="${session.version.versionName}"></span>
+            <span><a class="btn btn-warning" href="/view/checkIssues" role="button" >审核</a></span>
+            <span><a class="btn btn-warning" href="/view/issues/charts" role="button">统计</a></span>
+            </h2>
+        </div>
+        <div class="modal fade" tabindex="-1" role="dialog" id="resultModal">
+          <div class="modal-dialog" role="document" style="margin-left: 100px">
+            <div class="modal-content" style="width: 1250px;">
+              <div class="modal-header">
+                <h3 class="modal-title">预测结果</h3>
+              </div>
+              <div class="modal-body">
+                <div class="container">
+                  <table class="table table-hover" id="resultTable"></table>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal" onclick="refresh()">确认</button>
+              </div>
+            </div>
+            <!-- /.modal-content -->
+          </div>
+          <!-- /.modal-dialog -->
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-12">
+          <div class="ibox float-e-margins">
+            <div class="ibox-title">
+              <h5>问题列表</h5>
+              <div class="ibox-tools">
+                <a class="collapse-link">
+                  <i class="fa fa-chevron-up"></i>
+                </a>
+              </div>
+            </div>
+            <div class="ibox-content">
+              <div class="row">
+                <table id="condition">
+                  <tr>
+                    <td style="padding-left: 20px;width:80px">
+                      <label>优先级：</label>
+                    </td>
+                    <td style="width: 100px">
+                      <select id="prioritySelect" class="input-sm form-control input-s-sm inline" onchange="refresh()">
+                        <option value="">请选择</option>
+                        <option value="Low">低</option>
+                        <option value="Medium">中等</option>
+                        <option value="High">高</option>
+                        <option value="Critical">严重</option>
+                      </select>
+                    </td>
+                    <td style="padding-left: 20px;width: 100px">
+                      <label>漏洞类型：</label>
+                    </td>
+                    <td>
+                      <select id="patternSelect" class="input-sm form-control input-s-sm inline" onchange="refresh()">
+                        <option value="" selected>请选择</option>
+                        <option th:each="patternItem:${patternItemList}" th:value="${patternItem.patternId}" th:text="${patternItem.patternName}+'('+${patternItem.issueNum}+')'"></option>
+                      </select>
+                    </td>
+                    <td style="padding-left: 20px;width: 60px">
+                      <label>状态：</label>
+                    </td>
+                    <td style="width: 100px">
+                      <select id="stateSelect" class="input-sm form-control input-s-sm inline" onchange="refresh()">
+                        <option value="">请选择</option>
+                        <option value="False">误报</option>
+                        <option value="True">正报</option>
+                        <option value="Unknown">未知</option>
+                        <option value="Unclassified">未分类</option>
+                      </select>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              <table class="table table-hover" id="OrderedIssueTable"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+        <!-- /.modal-dialog -->
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+<script th:inline="javascript">
+  $(document).ready(function() {
+    $("#OrderedIssueTable").bootstrapTable({
+      url: "/orderedIssues", //请求地址
+      queryParams:function(params){
+        let data = {
+          priority:$('#prioritySelect').val(),
+          patternId:$('#patternSelect').val(),
+          state:$('#stateSelect').val(),
+          type:$('#typeSelect').val()
+        };
+        return data;
+      },
+      striped: true, //是否显示行间隔色
+      pageNumber: 1, //初始化加载第一页
+      pagination: true, //是否分页
+      sidePagination: 'client', //server:服务器端分页|client：前端分页
+      pageSize: 15, //单页记录数
+      pageList: [ 15, 30], //可选择单页记录数
+      showRefresh: true, //刷新按钮
+      sortName: 'likelihood',
+      sortOrder: 'desc',
+      rowStyle: style,
+      columns: [{
+        title: '#',
+        field: 'id',
+        sortable: true,
+        formatter: function(value, row, index) {
+          return index + 1;
+        }
+      }, {
+        title: '漏洞模式',
+        field: 'patternName',
+        sortable: true
+      },  {
+        title: '漏洞类别',
+        field: 'type',
+        sortable: true
+      },{
+        title: '漏洞领域',
+        field: 'kingdom',
+        sortable: true
+      },{
+        title: '优先级',
+        field: 'priority',
+        sortable: true
+      }, {
+        title: '文件名称',
+        field: 'fileName',
+        sortable: true
+      }, {
+        title: '方法名称',
+        field: 'targetFunction',
+        sortable: true
+      }, {
+        title: '所在行',
+        field: 'startLine',
+        sortable: true
+      },
+        {
+        title: '方法起始行',
+        field: 'funcStartLine',
+        sortable: true
+      }, {
+        title: '方法终止行',
+        field: 'funcEndLine',
+        sortable: true
+      },
+        {
+        title: '置信值',
+        field: 'likelihood',
+        sortable: true,
+        formatter: toFixed
+      }],
+      onClickRow:function (row, $element) {
+        watchIssue(row.issueId);
+        $('.info').removeClass('info');//移除class
+        $($element).addClass('info');//添加class
+      }
+    })
+  });
+
+  function refresh() {
+    $("#OrderedIssueTable").bootstrapTable('refresh')
+  }
+
+  function toFixed(value, row, index) {
+    let num = row.likelihood;
+    return num.toFixed(2);
+  }
+
+  /**
+   * @return {string}
+   */
+  function IssueOperateFormatter(value, row, index) {
+    if (row.state === "False") return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为正报' onclick='start(\"" + row.issueId + "\")'><i class='fa fa-check'></i></a>";
+    else if (row.state === "True") return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为误报' onclick='end(\"" + row.issueId + "\")'><i class='fa fa-times'></i></a>";
+    else return "<a href='#' onclick='watch(\"" + row.issueId + "\")'><i class='fa fa-eye'></i> </a>" + "  " + "<a href='#' title='标记为正报' onclick='start(\"" + row.issueId + "\")'><i class='fa fa-check'></i></a>" + "  " + "<a href='#' title='标记为误报' onclick='end(\"" + row.issueId + "\")'><i class='fa fa-times'></i></a>";
+  }
+
+  function style(row, index) {
+    let style = "";
+    if (row.state === 'True') {
+      style = "danger";
+    }
+    return {
+      classes: style
+    };
+  }
+
+  function generate() {
+    $.ajax({
+      url: '/generateReport',
+      responseType: 'blob',
+      method: 'get',
+      success: function(msg) {
+        if (msg === 'null') layer.msg("请设置报告模版");
+        else {
+          const blob = new Blob([msg], {
+            type: 'application/vnd.ms-excel;charset=utf-8'
+          });
+          const link = document.createElement('a'); // 创建a链接，用于下载文件
+          link.download = [[${session.project.projectName}]]+'-'+[[${session.version.versionName}]]+'.doc';
+          link.style.display = 'none';
+          link.href = URL.createObjectURL(blob);
+          document.body.appendChild(link);
+          link.click(); // 触发事件，下载文件
+          URL.revokeObjectURL(link.href); // 释放掉blob对象
+          document.body.removeChild(link) // 下载完成移除元素
+        }
+      }
+    })
+  }
+
+  function toViewKnowledge(){
+    let patternId = $("#patternIdDiv").text();
+    if(patternId !== '') window.location.href = '/view/knowledge/'+patternId;
+  }
+
+  function checkIssues(){
+
+  }
+</script>
+
+</html>

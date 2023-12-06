@@ -1,0 +1,9 @@
+java -jar out/artifacts/AICodeAnalysisSystem_jar/mybatis-generator-core-1.3.6.jar -configfile mybatis-generator/generatorConfig.xml
+
+
+管理员用户
+userName administrator
+password AP:b9cdd325-e8f6-46ba-be87-8bb6adaec5c1
+
+LTAI5tB4KjKu7hqVtj74pYXN
+QAegSaF0APFL1VVbwyWp17qcObErPl

@@ -1,0 +1,8 @@
+@relation feature
+@attribute A numeric
+@attribute B numeric
+@attribute C numeric
+@attribute D numeric
+@attribute label {0,1}
+@data
+1,0,0,1,1
